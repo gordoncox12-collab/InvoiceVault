@@ -488,6 +488,8 @@ class VaultRepository(
         return storage.relativeToFiles(dest, context)
     }
 
+    suspend fun resolveFile(relative: String): File = storage.resolve(context, relative)
+
     private suspend fun indexFile(
         businessId: String,
         customerId: String,
