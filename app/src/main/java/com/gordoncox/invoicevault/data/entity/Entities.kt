@@ -239,6 +239,11 @@ data class InvoiceTemplateEntity(
     val footerText: String?,
     val headerImagePath: String?,
     val extraImagePath: String?,
+    val logoAlignment: String = LogoAlignment.LEFT.name,
+    val marginPreset: String = MarginPreset.NORMAL.name,
+    val picturePlacement: String = PicturePlacement.AFTER_ITEMS.name,
+    val showSignatureLine: Boolean = true,
+    val headerBanner: Boolean = true,
     val createdAt: Long,
     val updatedAt: Long,
 )
@@ -274,6 +279,14 @@ enum class AccentPalette {
     PINOTAGE,
     PROTEA_GOLD,
     SLATE,
+    INDIGO_NIGHT,
+    CORAL_BAY,
 }
 
-enum class TemplateLayout { CLASSIC, MODERN, COMPACT }
+enum class TemplateLayout { CLASSIC, MODERN, COMPACT, LETTERHEAD, MINIMAL }
+
+enum class LogoAlignment { LEFT, CENTER, RIGHT }
+
+enum class MarginPreset { TIGHT, NORMAL, WIDE }
+
+enum class PicturePlacement { HEADER, AFTER_ITEMS, FOOTER }

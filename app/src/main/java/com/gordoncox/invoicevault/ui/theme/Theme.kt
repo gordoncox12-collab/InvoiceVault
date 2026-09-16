@@ -25,6 +25,8 @@ val Palettes = listOf(
     Palette("Pinotage", AccentPalette.PINOTAGE, Color(0xFF7A1F3D), Color(0xFFB45309), Color(0xFF0F6E56)),
     Palette("Protea Gold", AccentPalette.PROTEA_GOLD, Color(0xFFB45309), Color(0xFF7A1F3D), Color(0xFF0B6E99)),
     Palette("Table Mountain", AccentPalette.SLATE, Color(0xFF334155), Color(0xFF0B6E99), Color(0xFFC9A227)),
+    Palette("Indigo Night", AccentPalette.INDIGO_NIGHT, Color(0xFF3730A3), Color(0xFF0F766E), Color(0xFFC9A227)),
+    Palette("Coral Bay", AccentPalette.CORAL_BAY, Color(0xFFC2410C), Color(0xFF0F6E56), Color(0xFF1D4ED8)),
 )
 
 private fun light(p: Palette) = lightColorScheme(

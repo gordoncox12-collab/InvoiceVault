@@ -137,6 +137,9 @@ interface NoteDao {
     @Query("SELECT * FROM notes WHERE customerId = :customerId ORDER BY updatedAt DESC")
     fun observeForCustomer(customerId: String): Flow<List<NoteEntity>>
 
+    @Query("SELECT * FROM notes WHERE id = :id")
+    suspend fun get(id: String): NoteEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: NoteEntity)
 

@@ -186,6 +186,12 @@ fun InvoiceEditorScreen(rawId: String, appVm: AppViewModel, nav: NavHostControll
 
     Scaffold(topBar = { BackBar(if (isNew) "New invoice" else number, nav) }) { padding ->
         Column(Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (customers.isEmpty()) {
+                Text("Add a customer before you can invoice. Nothing is pre-filled — this is your live book.")
+                Button(onClick = { nav.navigate(com.gordoncox.invoicevault.ui.nav.customerEdit("new")) }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Add customer")
+                }
+            }
             DropdownField("Customer", customers.map { it.id to it.name }, customerId) { customerId = it }
             LabeledField("Number", number, { number = it })
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {

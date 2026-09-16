@@ -20,6 +20,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -63,8 +64,8 @@ fun BusinessEditScreen(id: String, appVm: AppViewModel, nav: NavHostController) 
     var email by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
-    var city by remember { mutableStateOf("Cape Town") }
-    var province by remember { mutableStateOf("Western Cape") }
+    var city by remember { mutableStateOf("") }
+    var province by remember { mutableStateOf("") }
     var postal by remember { mutableStateOf("") }
     var bank by remember { mutableStateOf("") }
     var accountName by remember { mutableStateOf("") }
@@ -177,7 +178,7 @@ fun CustomerEditScreen(id: String, appVm: AppViewModel, nav: NavHostController) 
     var phone by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var city by remember { mutableStateOf("") }
-    var province by remember { mutableStateOf("Western Cape") }
+    var province by remember { mutableStateOf("") }
     var postal by remember { mutableStateOf("") }
     var vat by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
@@ -308,6 +309,14 @@ fun NoteEditScreen(customerId: String, noteId: String, appVm: AppViewModel, nav:
     val scope = rememberCoroutineScope()
     var title by remember { mutableStateOf("") }
     var body by remember { mutableStateOf("") }
+    LaunchedEffect(noteId) {
+        if (noteId != "new") {
+            repo.getNote(noteId)?.let { n ->
+                title = n.title
+                body = n.body
+            }
+        }
+    }
     Scaffold(topBar = { BackBar("Note", nav) }) { padding ->
         Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             LabeledField("Title", title, { title = it })
@@ -340,6 +349,7 @@ fun FolderScreen(customerId: String, typeName: String, appVm: AppViewModel, nav:
     val type = runCatching { FolderType.valueOf(typeName) }.getOrDefault(FolderType.INVOICES)
     val files by repo.files(customerId, type).collectAsState(initial = emptyList())
     val customer by repo.customer(customerId).collectAsState(initial = null)
+    val share = com.gordoncox.invoicevault.ui.nav.rememberAppContainer().share
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -349,16 +359,24 @@ fun FolderScreen(customerId: String, typeName: String, appVm: AppViewModel, nav:
         }
     }
     Scaffold(topBar = { BackBar(type.name.lowercase().replaceFirstChar { it.titlecase() }, nav) }) { padding ->
-        Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("${files.size} file(s) stored under this business / customer.")
+        Column(Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("${files.size} file(s) stored under this business / customer on this device.")
             Button(onClick = { picker.launch(arrayOf("*/*")) }, modifier = Modifier.fillMaxWidth()) { Text("Add file from device") }
+            if (files.isEmpty()) {
+                Text(
+                    "This folder is empty. Add invoices, receipts, spreadsheets, images or notes — they stay on the phone.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             files.forEach { f ->
                 Card(modifier = Modifier.fillMaxWidth()) {
-                    ListItem(
-                        headlineContent = { Text(f.displayName) },
-                        supportingContent = { Text("${f.mimeType} · ${f.sizeBytes} bytes") },
-                        trailingContent = {
-                            IconButton(onClick = {
+                    Column {
+                        ListItem(
+                            headlineContent = { Text(f.displayName) },
+                            supportingContent = { Text("${f.mimeType} · ${f.sizeBytes} bytes") },
+                        )
+                        Row(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = {
                                 scope.launch {
                                     val file = repo.resolveFile(f.relativePath)
                                     if (file.exists()) {
@@ -374,9 +392,24 @@ fun FolderScreen(customerId: String, typeName: String, appVm: AppViewModel, nav:
                                         context.startActivity(android.content.Intent.createChooser(intent, f.displayName))
                                     }
                                 }
-                            }) { Icon(Icons.Default.Delete, contentDescription = null) }
-                        },
-                    )
+                            }) { Text("Open") }
+                            OutlinedButton(onClick = {
+                                scope.launch {
+                                    val file = repo.resolveFile(f.relativePath)
+                                    if (file.exists()) share.emailFile(file, f.displayName, "Please find ${f.displayName} attached.", customer?.email)
+                                }
+                            }) { Text("Email") }
+                            OutlinedButton(onClick = {
+                                scope.launch {
+                                    val file = repo.resolveFile(f.relativePath)
+                                    if (file.exists()) share.whatsappFile(file, f.displayName)
+                                }
+                            }) { Text("WhatsApp") }
+                            IconButton(onClick = { scope.launch { repo.deleteFolderFile(f) } }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete")
+                            }
+                        }
+                    }
                 }
             }
         }
