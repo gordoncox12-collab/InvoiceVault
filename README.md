@@ -16,6 +16,9 @@ Every business, customer, invoice, signature, spreadsheet and receipt lives on t
 
 Play listing copy, data-safety answers and screenshot checklist: **[PLAY_STORE.md](PLAY_STORE.md)**.
 
+**Play AAB (public):** https://github.com/gordoncox12-collab/InvoiceVault/releases/download/v1.0.0/InvoiceVault.aab  
+**Sideload APK (public, no login):** https://github.com/gordoncox12-collab/InvoiceVault/releases/download/v1.0.0/InvoiceVault-release.apk
+
 ## First launch (no seed data)
 
 The first screen asks you to **create your business profile**. After that, add customers and invoices. Books start empty — there are no Cape Town sample businesses, fake customers or sample invoices.
@@ -62,7 +65,10 @@ Output: `app/build/outputs/apk/release/app-release.apk`
 5. In [Google Play Console](https://play.google.com/console) create the app **InvoiceVault**, complete the listing from `PLAY_STORE.md`, then **Create release → Upload** the `.aab`.
 6. Turn on **Play App Signing**. Keep `app/play-upload.jks` forever — every update must be signed with this upload key. If you lose it, use Play Console’s upload-key reset.
 
-Release artefacts are also attached to the public GitHub Release (anonymous download, no login).
+Release artefacts are also attached to the public GitHub Release (anonymous download, no login):
+
+- https://github.com/gordoncox12-collab/InvoiceVault/releases/download/v1.0.0/InvoiceVault.aab
+- https://github.com/gordoncox12-collab/InvoiceVault/releases/download/v1.0.0/InvoiceVault-release.apk
 
 ### Upload keystore (Gordon — change these if you generate a new key)
 
