@@ -1,5 +1,7 @@
 # InvoiceVault
 
+**Sideload (public, no login):** https://github.com/gordoncox12-collab/InvoiceVault/releases/download/v0.1.1-debug/InvoiceVault-debug.apk
+
 Offline-first Android invoicing for **Gordon Cox** (South Africa, `en-ZA`).
 
 Every business, customer, invoice, signature, spreadsheet and receipt lives on the phone. There is no server.
