@@ -1,0 +1,40 @@
+name: Android
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - name: Accept Android SDK licences
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SM="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | head -1)"
+          echo "sdkmanager=$SM"
+          yes | "$SM" --licenses || true
+      - name: Assemble debug APK
+        run: ./gradlew :app:assembleDebug :app:testDebugUnitTest --no-daemon
+      - name: Package named APK
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk InvoiceVault-debug.apk
+          file InvoiceVault-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: InvoiceVault-debug
+          path: InvoiceVault-debug.apk
+      - name: Release APK on tags
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: InvoiceVault-debug.apk
+          generate_release_notes: true
