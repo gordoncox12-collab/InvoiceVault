@@ -10,12 +10,20 @@ import com.gordoncox.invoicevault.data.entity.ThemeMode
 import com.gordoncox.invoicevault.data.repo.VaultRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class AppViewModel(private val repo: VaultRepository) : ViewModel() {
-    val settings = repo.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettingsEntity(activeBusinessId = null))
-    val businesses = repo.businesses.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    private val _hydrated = MutableStateFlow(false)
+    val hydrated = _hydrated.asStateFlow()
+
+    val settings = repo.settings.stateIn(viewModelScope, SharingStarted.Eagerly, AppSettingsEntity(activeBusinessId = null))
+    val businesses = repo.businesses
+        .onEach { _hydrated.value = true }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val activeBusiness = combine(settings, businesses) { s, list ->
         list.firstOrNull { it.id == s.activeBusinessId } ?: list.firstOrNull()

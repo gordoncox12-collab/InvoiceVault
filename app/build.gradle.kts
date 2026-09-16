@@ -1,9 +1,21 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
+
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+
+fun signingValue(name: String): String? =
+    System.getenv(name) ?: keystoreProperties.getProperty(name)?.takeIf { it.isNotBlank() }
 
 android {
     namespace = "com.gordoncox.invoicevault"
@@ -14,19 +26,37 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0.0"
+        resourceConfigurations += listOf("en", "en-rZA")
+    }
+
+    signingConfigs {
+        val storePath = signingValue("KEYSTORE_FILE") ?: signingValue("storeFile")
+        val storeFileRef = storePath?.let { rootProject.file(it) }
+        if (storeFileRef != null && storeFileRef.exists()) {
+            create("release") {
+                storeFile = storeFileRef
+                storePassword = signingValue("KEYSTORE_PASSWORD") ?: signingValue("storePassword") ?: ""
+                keyAlias = signingValue("KEY_ALIAS") ?: signingValue("keyAlias") ?: "upload"
+                keyPassword = signingValue("KEY_PASSWORD") ?: signingValue("keyPassword") ?: ""
+            }
+        }
     }
 
     buildTypes {
         debug {
             isMinifyEnabled = false
+            applicationIdSuffix = ""
         }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            signingConfig = signingConfigs.findByName("release")
+                ?: signingConfigs.getByName("debug")
         }
     }
 
@@ -42,6 +72,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {

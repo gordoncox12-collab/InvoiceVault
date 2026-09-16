@@ -3,6 +3,7 @@ package com.gordoncox.invoicevault.data.share
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import java.io.File
@@ -14,10 +15,25 @@ class ShareHelper(private val context: Context) {
         file,
     )
 
-    fun sharePdf(file: File, title: String, body: String, email: String? = null) {
+    fun mimeOf(file: File): String {
+        val ext = file.extension.lowercase()
+        return MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)
+            ?: when (ext) {
+                "pdf" -> "application/pdf"
+                "png" -> "image/png"
+                "jpg", "jpeg" -> "image/jpeg"
+                "webp" -> "image/webp"
+                "xlsx" -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                "xls" -> "application/vnd.ms-excel"
+                "csv" -> "text/csv"
+                else -> "application/octet-stream"
+            }
+    }
+
+    fun shareFile(file: File, title: String, body: String, email: String? = null, mime: String = mimeOf(file)) {
         val uri = uriFor(file)
         val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/pdf"
+            type = mime
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_SUBJECT, title)
             putExtra(Intent.EXTRA_TEXT, body)
@@ -27,10 +43,13 @@ class ShareHelper(private val context: Context) {
         context.startActivity(Intent.createChooser(intent, "Share $title").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
-    fun emailPdf(file: File, title: String, body: String, email: String?) {
+    fun sharePdf(file: File, title: String, body: String, email: String? = null) =
+        shareFile(file, title, body, email, "application/pdf")
+
+    fun emailFile(file: File, title: String, body: String, email: String?, mime: String = mimeOf(file)) {
         val uri = uriFor(file)
         val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/pdf"
+            type = mime
             putExtra(Intent.EXTRA_STREAM, uri)
             putExtra(Intent.EXTRA_SUBJECT, title)
             putExtra(Intent.EXTRA_TEXT, body)
@@ -44,12 +63,15 @@ class ShareHelper(private val context: Context) {
         }
     }
 
-    fun whatsappPdf(file: File, body: String) {
+    fun emailPdf(file: File, title: String, body: String, email: String?) =
+        emailFile(file, title, body, email, "application/pdf")
+
+    fun whatsappFile(file: File, body: String, mime: String = mimeOf(file)) {
         val uri = uriFor(file)
         val packages = listOf("com.whatsapp", "com.whatsapp.w4b")
         for (pkg in packages) {
             val intent = Intent(Intent.ACTION_SEND).apply {
-                type = "application/pdf"
+                type = mime
                 setPackage(pkg)
                 putExtra(Intent.EXTRA_STREAM, uri)
                 putExtra(Intent.EXTRA_TEXT, body)
@@ -60,6 +82,8 @@ class ShareHelper(private val context: Context) {
                 return
             }
         }
-        sharePdf(file, "Invoice", body, null)
+        shareFile(file, file.name, body, null, mime)
     }
+
+    fun whatsappPdf(file: File, body: String) = whatsappFile(file, body, "application/pdf")
 }

@@ -25,6 +25,7 @@ object Routes {
     const val TEMPLATES = "templates"
     const val TEMPLATE_EDIT = "template/{id}"
     const val TRANSACTIONS = "transactions"
+    const val TRANSACTION_EDIT = "transaction/new"
     const val NOTE_EDIT = "note/{customerId}/{noteId}"
     const val FOLDER = "folder/{customerId}/{type}"
     const val SHEET_CAPTURE = "sheet/{customerId}"

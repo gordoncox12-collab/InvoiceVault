@@ -16,7 +16,11 @@ import com.gordoncox.invoicevault.data.entity.InvoiceLineItemEntity
 import com.gordoncox.invoicevault.data.entity.InvoiceStatus
 import com.gordoncox.invoicevault.data.entity.InvoiceTemplateEntity
 import com.gordoncox.invoicevault.data.entity.InvoiceWithDetails
+import com.gordoncox.invoicevault.data.entity.LogoAlignment
+import com.gordoncox.invoicevault.data.entity.MarginPreset
 import com.gordoncox.invoicevault.data.entity.NoteEntity
+import com.gordoncox.invoicevault.data.entity.PicturePlacement
+import com.gordoncox.invoicevault.data.entity.TemplateLayout
 import com.gordoncox.invoicevault.data.entity.ThemeMode
 import com.gordoncox.invoicevault.data.entity.TransactionEntity
 import com.gordoncox.invoicevault.data.entity.TransactionType
@@ -59,6 +63,7 @@ class VaultRepository(
     suspend fun getCustomer(id: String) = db.customerDao().get(id)
     suspend fun getInvoice(id: String) = db.invoiceDao().getWithDetails(id)
     suspend fun getTemplate(id: String) = db.templateDao().get(id)
+    suspend fun getNote(id: String) = db.noteDao().get(id)
     suspend fun defaultTemplate(businessId: String) = db.templateDao().defaultFor(businessId)
     suspend fun getSettings() = db.settingsDao().get() ?: AppSettingsEntity(activeBusinessId = null)
     suspend fun allCustomers(businessId: String) = db.customerDao().forBusiness(businessId)
@@ -80,11 +85,38 @@ class VaultRepository(
     }
 
     suspend fun saveBusiness(entity: BusinessEntity) {
+        val isNew = db.businessDao().get(entity.id) == null
         storage.businessDir(entity.id)
         db.businessDao().upsert(entity.copy(updatedAt = System.currentTimeMillis()))
         val settings = getSettings()
         if (settings.activeBusinessId == null) {
             db.settingsDao().upsert(settings.copy(activeBusinessId = entity.id))
+        }
+        if (isNew && db.templateDao().forBusiness(entity.id).isEmpty()) {
+            val now = System.currentTimeMillis()
+            db.templateDao().upsert(
+                InvoiceTemplateEntity(
+                    id = Za.newId(),
+                    businessId = entity.id,
+                    name = "Standard",
+                    isDefault = true,
+                    primaryColor = 0xFF0F6E56,
+                    accentColor = 0xFFC9A227,
+                    logoPath = null,
+                    layout = TemplateLayout.CLASSIC.name,
+                    showBankDetails = true,
+                    footerText = "${entity.name}  ·  invoices stored on this device",
+                    headerImagePath = null,
+                    extraImagePath = null,
+                    logoAlignment = LogoAlignment.LEFT.name,
+                    marginPreset = MarginPreset.NORMAL.name,
+                    picturePlacement = PicturePlacement.AFTER_ITEMS.name,
+                    showSignatureLine = true,
+                    headerBanner = true,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
         }
     }
 
@@ -435,6 +467,25 @@ class VaultRepository(
         val file = if (csv) excel.writeCsv(dest, headers, rows) else excel.writeWorkbook(dest, mapOf("Capture" to (headers to rows)))
         indexFile(businessId, customerId, FolderType.EXCEL, file, if (csv) "text/csv" else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         return file
+    }
+
+    suspend fun deleteFolderFile(entity: FolderFileEntity) {
+        storage.resolve(context, entity.relativePath).delete()
+        db.folderFileDao().delete(entity)
+    }
+
+    suspend fun attachReceipt(
+        businessId: String,
+        customerId: String?,
+        uri: Uri,
+        displayName: String,
+    ): String {
+        val cid = customerId ?: return ""
+        val dir = storage.folder(businessId, cid, FolderType.RECEIPTS)
+        val dest = storage.uniqueFile(dir, displayName.ifBlank { "receipt.jpg" })
+        context.contentResolver.openInputStream(uri)?.use { storage.copyInto(it, dest) }
+        indexFile(businessId, cid, FolderType.RECEIPTS, dest, guessMime(displayName))
+        return storage.relativeToFiles(dest, context)
     }
 
     suspend fun resolveFile(relative: String): File = storage.resolve(context, relative)

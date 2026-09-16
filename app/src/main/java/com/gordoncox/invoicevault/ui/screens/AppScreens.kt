@@ -2,15 +2,18 @@ package com.gordoncox.invoicevault.ui.screens
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -18,8 +21,10 @@ import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,6 +41,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.text.input.KeyboardType
+import com.gordoncox.invoicevault.data.entity.BusinessEntity
+import com.gordoncox.invoicevault.ui.components.LabeledField
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -77,6 +86,21 @@ import com.gordoncox.invoicevault.util.Za
 @Composable
 fun InvoiceVaultRoot(@Suppress("UNUSED_PARAMETER") container: AppContainer) {
     val appVm: AppViewModel = vaultModel { AppViewModel(it.repo) }
+    val businesses by appVm.businesses.collectAsState()
+    val hydrated by appVm.hydrated.collectAsState()
+    when {
+        !hydrated -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+        businesses.isEmpty() -> OnboardingScreen(appVm)
+        else -> InvoiceVaultMain(appVm)
+    }
+}
+
+@Composable
+private fun InvoiceVaultMain(appVm: AppViewModel) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val route = backStack?.destination?.route
@@ -123,6 +147,7 @@ fun InvoiceVaultRoot(@Suppress("UNUSED_PARAMETER") container: AppContainer) {
             composable(Routes.EXCEL) { ExcelHubScreen(appVm, nav) }
             composable(Routes.TEMPLATES) { TemplateListScreen(appVm, nav) }
             composable(Routes.TRANSACTIONS) { TransactionListScreen(appVm, nav) }
+            composable(Routes.TRANSACTION_EDIT) { TransactionEditScreen(appVm, nav) }
             composable(
                 Routes.BUSINESS_EDIT,
                 arguments = listOf(navArgument("id") { type = NavType.StringType }),
@@ -247,8 +272,12 @@ fun HomeScreen(appVm: AppViewModel, nav: NavHostController) {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { nav.navigate(invoiceEdit("new")) }) {
-                Icon(Icons.Default.Add, contentDescription = "New invoice")
+            FloatingActionButton(
+                onClick = {
+                    nav.navigate(if (customers.isEmpty()) customerEdit("new") else invoiceEdit("new"))
+                },
+            ) {
+                Icon(Icons.Default.Add, contentDescription = if (customers.isEmpty()) "Add customer" else "New invoice")
             }
         },
     ) { padding ->
@@ -268,14 +297,24 @@ fun HomeScreen(appVm: AppViewModel, nav: NavHostController) {
             item { SectionTitle("Quick actions") }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                    FilledTonalButton(onClick = { nav.navigate(invoiceEdit("new")) }) { Text("New invoice") }
+                    FilledTonalButton(onClick = {
+                        nav.navigate(if (customers.isEmpty()) customerEdit("new") else invoiceEdit("new"))
+                    }) { Text(if (customers.isEmpty()) "Add customer" else "New invoice") }
                     OutlinedButton(onClick = { nav.navigate(customerEdit("new")) }) { Text("Add customer") }
                     OutlinedButton(onClick = { nav.navigate(Routes.EXCEL) }) { Text("Excel") }
                     OutlinedButton(onClick = { nav.navigate(businessEdit(business?.id ?: "new")) }) { Text("Edit business") }
                 }
             }
+            if (customers.isEmpty()) {
+                item {
+                    EmptyState(
+                        "Your books are empty",
+                        "Add a customer, then create an invoice. Everything stays on this phone — no demo data, no cloud.",
+                    )
+                }
+            }
             item { SectionTitle("Recent invoices") }
-            if (invoices.isEmpty()) {
+            if (invoices.isEmpty() && customers.isNotEmpty()) {
                 item { EmptyState("No invoices yet", "Create an invoice — it is stored on this device only.") }
             }
             items(invoices.take(8), key = { it.id }) { inv ->
@@ -333,6 +372,13 @@ fun InvoiceListScreen(appVm: AppViewModel, nav: NavHostController) {
                 }
             }
             Spacer(Modifier.height(12.dp))
+            if (shown.isEmpty()) {
+                EmptyState(
+                    if (customers.isEmpty()) "Add a customer first" else "No invoices in this filter",
+                    if (customers.isEmpty()) "Customers live in this business’s books. Then you can invoice them offline."
+                    else "Draft, send, mark paid, or import from Excel.",
+                )
+            }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(shown, key = { it.id }) { inv ->
                     InvoiceRow(inv, customers.firstOrNull { it.id == inv.customerId }?.name) {
@@ -357,6 +403,14 @@ fun CustomerListScreen(appVm: AppViewModel, nav: NavHostController) {
         },
     ) { padding ->
         LazyColumn(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (customers.isEmpty()) {
+                item {
+                    EmptyState(
+                        "No customers yet",
+                        "Add your first customer. InvoiceVault creates a private folder for their invoices, receipts, Excel, images and notes.",
+                    )
+                }
+            }
             items(customers, key = { it.id }) { c ->
                 Card(onClick = { nav.navigate(customerDetail(c.id)) }, modifier = Modifier.fillMaxWidth()) {
                     ListItem(
@@ -375,9 +429,9 @@ fun MoreScreen(nav: NavHostController) {
     Scaffold(topBar = { TopAppBar(title = { Text("More") }) }) { padding ->
         Column(Modifier.padding(padding).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             MoreRow("Excel import / export", "Map columns, capture sheets, CSV/XLS/XLSX") { nav.navigate(Routes.EXCEL) }
-            MoreRow("Invoice templates", "Logo, colours, layout, pictures") { nav.navigate(Routes.TEMPLATES) }
-            MoreRow("Transactions", "Payments, expenses, receipts") { nav.navigate(Routes.TRANSACTIONS) }
-            MoreRow("Theme & accents", "Light, dark, system and palettes") { nav.navigate(Routes.SETTINGS) }
+            MoreRow("Invoice templates", "Layouts, margins, logo, paste pictures") { nav.navigate(Routes.TEMPLATES) }
+            MoreRow("Transactions", "Payments, expenses, share receipts") { nav.navigate(Routes.TRANSACTIONS) }
+            MoreRow("Settings & themes", "Light, dark, system and 8 accent palettes") { nav.navigate(Routes.SETTINGS) }
             MoreRow("New business profile", "Separate books and folders") { nav.navigate(businessEdit("new")) }
         }
     }
@@ -387,5 +441,90 @@ fun MoreScreen(nav: NavHostController) {
 private fun MoreRow(title: String, subtitle: String, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
         ListItem(headlineContent = { Text(title) }, supportingContent = { Text(subtitle) })
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OnboardingScreen(appVm: AppViewModel) {
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var name by remember { mutableStateOf("") }
+    var trading by remember { mutableStateOf("") }
+    var vat by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var city by remember { mutableStateOf("") }
+    var province by remember { mutableStateOf("") }
+    var prefix by remember { mutableStateOf("INV") }
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("Welcome to InvoiceVault") })
+        },
+    ) { padding ->
+        Column(
+            Modifier
+                .padding(padding)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                "Offline invoicing for your business. Nothing is seeded and nothing leaves this phone.",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Text(
+                "Create your business profile first. You can add customers, invoices, Excel files and themes next.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SectionTitle("Your business")
+            LabeledField("Business name", name, { name = it })
+            LabeledField("Trading name (optional)", trading, { trading = it })
+            LabeledField("VAT number (optional)", vat, { vat = it })
+            LabeledField("Email", email, { email = it }, keyboardType = KeyboardType.Email)
+            LabeledField("Phone", phone, { phone = it }, keyboardType = KeyboardType.Phone)
+            LabeledField("Address", address, { address = it })
+            LabeledField("City", city, { city = it })
+            LabeledField("Province", province, { province = it })
+            LabeledField("Invoice prefix", prefix, { prefix = it })
+            Text("Currency defaults to ZAR and VAT to 15% (South Africa). You can change both later.", style = MaterialTheme.typography.bodySmall)
+            Button(
+                enabled = name.isNotBlank(),
+                onClick = {
+                    scope.launch {
+                        val now = System.currentTimeMillis()
+                        val entity = BusinessEntity(
+                            id = Za.newId(),
+                            name = name.trim(),
+                            tradingName = trading.ifBlank { null },
+                            registrationNumber = null,
+                            vatNumber = vat.ifBlank { null },
+                            email = email,
+                            phone = phone,
+                            addressLine1 = address,
+                            addressLine2 = null,
+                            city = city,
+                            province = province,
+                            postalCode = "",
+                            country = "South Africa",
+                            bankName = null,
+                            bankAccountName = null,
+                            bankAccountNumber = null,
+                            bankBranchCode = null,
+                            logoPath = null,
+                            defaultCurrency = "ZAR",
+                            defaultVatPercent = 15.0,
+                            invoicePrefix = prefix.ifBlank { "INV" },
+                            nextInvoiceNumber = 1,
+                            createdAt = now,
+                            updatedAt = now,
+                        )
+                        appVm.repository.saveBusiness(entity)
+                        appVm.selectBusiness(entity.id)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) { Text("Create business and start") }
+        }
     }
 }
