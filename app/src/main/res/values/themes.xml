@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.InvoiceVault" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/vault_navy</item>
+        <item name="android:navigationBarColor">@color/vault_navy</item>
+        <item name="android:windowBackground">@color/vault_navy</item>
+    </style>
+</resources>
