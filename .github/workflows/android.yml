@@ -15,7 +15,13 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - uses: android-actions/setup-android@v3
+          cache: gradle
+      - name: Accept Android SDK licences
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SM="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | head -1)"
+          echo "sdkmanager=$SM"
+          yes | "$SM" --licenses || true
       - name: Assemble debug APK
         run: ./gradlew :app:assembleDebug :app:testDebugUnitTest --no-daemon
       - name: Package named APK
