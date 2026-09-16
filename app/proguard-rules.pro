@@ -30,6 +30,9 @@
 -dontwarn com.zaxxer.sparsebits.**
 -dontwarn org.apache.batik.**
 -dontwarn org.apache.xml.security.**
+-dontwarn java.awt.**
+-dontwarn javax.imageio.**
+-dontwarn javax.swing.**
 
 # Compose / coroutines
 -dontwarn kotlinx.coroutines.**
